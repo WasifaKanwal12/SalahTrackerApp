@@ -5,8 +5,8 @@ A React Native mobile application for tracking daily prayers, offering a calenda
 
 | | | |
 |:-------------------------:|:-------------------------:|:-------------------------:|
-| ![Calendar Screen](./assets/Calender.jpg) | ![Prayer Screen](./assets/Prayer.jpg) | ![Today's Analytics](./assets/DailyAnalytics.jpg) |
-| ![7-Day Analytics](./assets/WeeklyAnalytics.jpg) | ![Monthly Analytics](./assets/MonthlyAnalytics.jpg) | ![Streak Screen](./assets/Streak.jpg) |
+| ![Calendar Screen](./assets/Calender.JPG) | ![Prayer Screen](./assets/Prayer.JPG) | ![Today's Analytics](./assets/DailyAnalytics.JPG) |
+| ![7-Day Analytics](./assets/WeeklyAnalytics.JPG) | ![Monthly Analytics](./assets/MonthlyAnalytics.JPG) | ![Streak Screen](./assets/Streak.JPG) |
 
 ## Introduction
 Salah Tracker is a comprehensive prayer monitoring application that helps Muslims maintain consistency in their prayers. The app tracks prayer completion with individual/jamaat options, visualizes prayer history through custom charts, and maintains streaks using React Native and Redux.
