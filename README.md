@@ -38,7 +38,6 @@ Salah Tracker is a comprehensive prayer monitoring application that helps Muslim
    - Navigate to specific prayer dates  
 
 2. **Prayer Screen**:  
-   - Bilingual interface (Urdu/English prayer names)  
    - Real-time data persistence with Redux  
    - Custom checkbox components for prayer tracking  
 
