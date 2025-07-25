@@ -5,12 +5,11 @@ import Svg, { Rect, Line, Text as SvgText } from 'react-native-svg';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchPrayerRecords } from './actions/recordActions';
 import { useNavigation } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient'; // Import LinearGradient for the CustomTabBar
+
 
 const Tab = createMaterialTopTabNavigator();
 const screenWidth = Dimensions.get('window').width;
 
-// --- Content Components for Each Tab (defined outside PreviousRecordScreen) ---
 function Last7DaysTabContent({ renderChart, prayerCountsLast7Days, TotalOfferdPrayerLast7Days, maxCounts, prayerNames, prayerColors }) {
   return (
     <View style={styles.tabContentContainer}>
@@ -61,76 +60,6 @@ function TodayTabContent({ renderChart, prayerCountsToday, TotalOfferdPrayerToda
     </View>
   );
 }
-// --- End Content Components ---
-
-// --- Custom Tab Bar Component (copied and adapted from ExampleTabsScreen) ---
-const CustomTabBar = ({ state, descriptors, navigation }) => {
-  return (
-    <View style={styles.tabBarContainer}>
-      {state.routes.map((route, index) => {
-        const { options } = descriptors[route.key];
-        const label =
-          options.tabBarLabel !== undefined
-            ? options.tabBarLabel
-            : options.title !== undefined
-            ? options.title
-            : route.name;
-
-        const isFocused = state.index === index;
-
-        const onPress = () => {
-          const event = navigation.emit({
-            type: 'tabPress',
-            target: route.key,
-            canPreventDefault: true,
-          });
-
-          if (!isFocused && !event.defaultPrevented) {
-            navigation.navigate(route.name);
-          }
-        };
-
-        const onLongPress = () => {
-          navigation.emit({
-            type: 'tabLongPress',
-            target: route.key,
-          });
-        };
-
-        return (
-          <TouchableOpacity
-            key={route.key}
-            accessibilityRole="button"
-            accessibilityState={isFocused ? { selected: true } : {}}
-            accessibilityLabel={options.tabBarAccessibilityLabel}
-            onPress={onPress}
-            onLongPress={onLongPress}
-            style={styles.tabItem}
-          >
-            {isFocused && (
-              <LinearGradient
-                colors={['#742470ff', '#cc87c6da', '#7b1385ff']} // Gradient for active tab
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.tabIndicatorGradient}
-              />
-            )}
-            <Text
-              style={[
-                styles.tabLabel,
-                { color: isFocused ? 'white' : 'black' } // Dynamic text color
-              ]}
-            >
-              {label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
-};
-// --- End Custom Tab Bar Component ---
-
 
 function PreviousRecordScreen() {
   const dispatch = useDispatch();
@@ -186,16 +115,41 @@ function PreviousRecordScreen() {
     }
 
     const numBars = rawData.length;
-    const availableWidthForBars = chartWidth - 2 * padding;
-    const barWidth = availableWidthForBars / (numBars * 1.5);
-    const barSpacing = numBars > 1 ? (availableWidthForBars - (barWidth * numBars)) / (numBars - 1) : 0;
+    const availableWidthForBars = chartWidth - (2 * padding);
+
+    let barWidth;
+    let barSpacing;
+
+    if (numBars > 0) {
+      const totalBarSpaceRatio = 0.7;
+      barWidth = (availableWidthForBars * totalBarSpaceRatio) / numBars;
+
+      if (barWidth < 5) {
+          barWidth = 5;
+      }
+      barSpacing = numBars > 1 ? (availableWidthForBars - (barWidth * numBars)) / (numBars - 1) : 0;
+
+      if (barSpacing < 0) {
+          barSpacing = 0;
+      }
+    } else {
+
+      barWidth = 0;
+      barSpacing = 0;
+    }
+
 
     const yScale = (value) => {
-      return chartHeight - padding - (value / maxExpected) * (chartHeight - 2 * padding);
+
+      if (maxExpected === 0) return chartHeight - padding;
+      const safeValue = value || 0;
+      return chartHeight - padding - (safeValue / maxExpected) * (chartHeight - (2 * padding));
     };
 
     const xScale = (index) => {
-      return padding + (index * (barWidth + barSpacing)) + (barWidth / 2);
+      const safeBarWidth = isNaN(barWidth) ? 0 : barWidth;
+      const safeBarSpacing = isNaN(barSpacing) ? 0 : barSpacing;
+      return padding + (index * (safeBarWidth + safeBarSpacing)) + (safeBarWidth / 2);
     };
 
     const bars = rawData.map((value, index) => {
@@ -203,15 +157,20 @@ function PreviousRecordScreen() {
       const y = yScale(value);
       const height = chartHeight - padding - y;
       const color = barColors[index % barColors.length];
+      const displayHeight = height > 0 ? height : 1;
+      const displayY = height > 0 ? y : chartHeight - padding - 1;
+
 
       return (
         <Rect
           key={`bar-${index}`}
-          x={x}
-          y={y}
-          width={barWidth}
-          height={height}
+          x={isNaN(x) ? 0 : x}
+          y={isNaN(displayY) ? chartHeight - padding - 1 : displayY}
+          width={isNaN(barWidth) ? 0 : barWidth}
+          height={isNaN(displayHeight) ? 1 : displayHeight}
           fill={color}
+          rx={3}
+          ry={3}
         />
       );
     });
@@ -219,7 +178,7 @@ function PreviousRecordScreen() {
     const xAxisLabels = prayerLabels.map((label, index) => (
       <SvgText
         key={`x-label-${index}`}
-        x={xScale(index)}
+        x={isNaN(xScale(index)) ? 0 : xScale(index)}
         y={chartHeight - padding + 15}
         fontSize="10"
         fill="black"
@@ -231,26 +190,25 @@ function PreviousRecordScreen() {
 
     const yAxisLines = [];
     const yAxisLabels = [];
-    const numberOfTicks = maxExpected + 1;
-
     for (let i = 0; i <= maxExpected; i++) {
       const yPos = yScale(i);
       yAxisLines.push(
         <Line
           key={`y-line-${i}`}
           x1={padding}
-          y1={yPos}
+          y1={isNaN(yPos) ? chartHeight - padding : yPos}
           x2={chartWidth - padding}
-          y2={yPos}
+          y2={isNaN(yPos) ? chartHeight - padding : yPos}
           stroke="lightgrey"
           strokeWidth="0.5"
+          strokeDasharray="2,2"
         />
       );
       yAxisLabels.push(
         <SvgText
           key={`y-label-${i}`}
           x={padding - 10}
-          y={yPos + 3}
+          y={isNaN(yPos) ? chartHeight - padding + 3 : yPos + 3}
           fontSize="10"
           fill="grey"
           textAnchor="end"
@@ -296,8 +254,31 @@ function PreviousRecordScreen() {
     >
       <View style={styles.overlay}>
         <Tab.Navigator
-          // FIX: Use the CustomTabBar component here
-          tabBar={props => <CustomTabBar {...props} />}
+          screenOptions={{
+            tabBarActiveTintColor: 'white',
+            tabBarInactiveTintColor: 'black',
+            tabBarLabelStyle: { fontSize: 16, fontWeight: 'bold' },
+            tabBarStyle: {
+              marginTop: 20,
+              backgroundColor: 'white',
+              borderRadius: 30,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.25,
+              shadowRadius: 3.84,
+              elevation: 5,
+              marginHorizontal: 20,
+              overflow: 'hidden',
+              height: 50,
+            },
+            tabBarIndicatorStyle: {
+              backgroundColor: '#7b1385ff',
+              height: '100%',
+              borderRadius: 30,
+              zIndex: -1,
+            },
+            tabBarPressColor: 'rgba(116, 36, 112, 0.2)',
+          }}
         >
           <Tab.Screen
             name="Last 7 Days"
@@ -348,24 +329,22 @@ function PreviousRecordScreen() {
             )}
           />
         </Tab.Navigator>
-
-       
-
       </View>
     </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  backgroundImage: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-  },
+
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.7)',
     flexDirection: 'column',
+  },
+   backgroundImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
   },
   tabContentContainer: {
     flex: 1,
@@ -415,65 +394,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: 'black',
     marginTop: 20,
-  },
-  navigateButton: {
-    marginTop: 30,
-    marginBottom: 20,
-    alignSelf: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 25,
-    backgroundColor: '#6200ee',
-    borderRadius: 25,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 8,
-  },
-  navigateButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  // Styles for CustomTabBar - copied from ExampleTabsScreen
-  tabBarContainer: {
-    flexDirection: 'row',
-    marginTop: 20,
-    backgroundColor: 'white', // Background of the entire tab bar strip
-    borderRadius: 30,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    marginHorizontal: 20, // Add some horizontal margin for the tab bar itself
-    overflow: 'hidden', // Ensures the inner elements respect the border radius
-  },
-  tabItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 50, // Height of your individual tab item
-    borderRadius: 30, // Apply border radius to each tab item for consistent look
-    overflow: 'hidden', // Crucial for gradient to respect border radius
-  },
-  tabLabel: {
-    fontWeight: 'bold',
-    fontSize: 16,
-    zIndex: 1, // IMPORTANT: Ensure text is above the gradient
-    // The color is set dynamically in the component
-  },
-  tabIndicatorGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 30, // Match the border radius of the tabItem
-    zIndex: 0, // IMPORTANT: Ensure the gradient is behind the text
   },
 });
 
